@@ -9,20 +9,6 @@ Players can only make 1 bet per address.
 Improvements that should be added in the future are commented on the bottom.
 */
 
-contract CasinoGame {
-    uint gameNumber;
-    enum gameType {
-        Roulette
-        
-    }
-    
-}
-
-interface Rouletteable {
-    
-}
-
-
 contract CasinoGameRoulette {
     //move to Treasury
     uint256 gameBalance;
@@ -178,24 +164,24 @@ contract CasinoGameRoulette {
         uint256 return_random_number = inputRand % 37;
         return return_random_number;
     }
-    function spinTheWheel() public view returns(uint256, uint256) {
+    
+    event RouletteWheelResults(uint256,uint256);
+    
+    function spinTheWheel() public {
        
-        uint256 selectedWheelNumber;
-        uint256 selectedWheelColor;
+       uint256 selectedWheelNumber;
+       uint256 selectedWheelColor;
 
-        selectedWheelNumber=rouletteModByNumSlots(summationOfAllBetData);
-        selectedWheelColor=rouletteModByNumColors(summationOfAllBetData);
+       selectedWheelNumber=rouletteModByNumSlots(summationOfAllBetData);
+       selectedWheelColor=rouletteModByNumColors(summationOfAllBetData);
        
-        //will be added when function is no longer "view" --- is "view" for testing purposes
-        // identifyWinners(selectedWheelNumber,selectedWheelColor);
-        //settleBetsInChipVal(selectedWheelNumber,selectedWheelColor);
+       identifyWinners(selectedWheelNumber,selectedWheelColor);
+       settleBetsInChipVal();
+       
+       gameNumber++;
+       
+       emit RouletteWheelResults(selectedWheelNumber,selectedWheelColor);
 
-        //will be added when function is no longer "view" --- is "view" for testing purposes   
-        //gameNumber++;
-       
-        return (selectedWheelNumber,selectedWheelColor);
-        //emit RouletteWheelResults(selectedWheelNumber,selectedWheelColor);
-     
     }
     
 
@@ -263,24 +249,7 @@ contract CasinoGameRoulette {
 
     //function updateBalanceByBetType();........
     
-    event RouletteWheelResults(uint256,uint256);
-    
-    function spinTheWheelEmitter() public {
-       
-       uint256 selectedWheelNumber;
-       uint256 selectedWheelColor;
 
-       selectedWheelNumber=rouletteModByNumSlots(summationOfAllBetData);
-       selectedWheelColor=rouletteModByNumColors(summationOfAllBetData);
-       
-       identifyWinners(selectedWheelNumber,selectedWheelColor);
-       settleBetsInChipVal();
-       
-       gameNumber++;
-       
-       emit RouletteWheelResults(selectedWheelNumber,selectedWheelColor);
-
-    }
     
      
     //function betOnRouge(uint8 betAmount,) payable public
@@ -295,7 +264,7 @@ contract CasinoGameRoulette {
     
     //function betOnImpair(uint8 betAmount,) payable public
      
-    function betOnNumber(uint8 betAmount, uint8 rouletteWheelNumberGuess) payable public {
+   // function betOnNumber(uint8 betAmount, uint8 rouletteWheelNumberGuess) payable public {
     /* 
        A bet is valid when:
        1 - the value of the bet is correct (=betAmount)
@@ -320,7 +289,7 @@ contract CasinoGameRoulette {
     }));
     
     */
-  }
+//  }
      
 }
 
@@ -479,6 +448,22 @@ contract CasinoPlayer {
 
     
 }
+
+
+contract CasinoGame {
+    uint gameNumber;
+    enum gameType {
+        Roulette
+        
+    }
+    
+}
+
+interface Rouletteable {
+    
+}
+
+
 
 /*
 Improvements that should be added in the future:
