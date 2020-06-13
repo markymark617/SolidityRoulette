@@ -9,10 +9,26 @@ Players can only make 1 bet per address.
 Improvements that should be added in the future are commented on the bottom.
 */
 
+contract Game {
+    uint gameNumber;
+    enum gameType {
+        Roulette
+        
+    }
+    
+}
+
+
 contract CasinoGameRoulette {
+    //move to Treasury
     uint256 gameBalance;
-    uint256 totalBetsPlaced;
-    bool wheelHasSpun;
+    uint numBetsMapped;
+    //first game = 0, second game =1...
+    uint gameNumber;
+    
+    //used for "Random" number generator
+    uint256 summationOfAllBetData;
+    //will be used when delay is implemented --- bool wheelHasSpun;
     
     //RouletteWheelVariables
     uint WheelNumberMin;
@@ -24,15 +40,15 @@ contract CasinoGameRoulette {
     //constructor that initializes all related instances and sets game defaults
         
     //sets up the roulette game 
-    constructor() public {
+    constructor() public payable {
         gameBalance=0;
-        totalBetsPlaced=0;
+        numBetsMapped=0;
+        summationOfAllBetData=0;
+        
         WheelNumberMin=0;
         WheelNumberMax=36;
         WheelNumberRed=1;
         WheelNumberBlack=2;
-       // gameDealer.balanceMinimum=0;
-        
     }
     
     modifier runBeforeSpin {
@@ -47,8 +63,7 @@ contract CasinoGameRoulette {
     
     function getAdmittedPlayers() public view returns(address[] memory) {
        return(admittedPlayers);
-   }
-
+    }
     function verifyAdmittedPlayersAddress(address inputAddress) public view returns(bool) {
        bool bAddressIsValid;
        //add if(admittedPlayers.length==0){ return false; }
@@ -58,7 +73,7 @@ contract CasinoGameRoulette {
             }
        }
        return(bAddressIsValid);
-   }
+    }
     //add treasury check that chips were distributed
     function admitPlayer(address _address) external {
         bool alreadyAdmitted;
@@ -72,7 +87,6 @@ contract CasinoGameRoulette {
             revert("Already Admitted");
         }
     }
-
     function getPlayerCount() public view returns(uint count) {
         return admittedPlayers.length;
     }
@@ -98,11 +112,7 @@ contract CasinoGameRoulette {
         address payable playerAddressPayable;
         //uint...
     }
-    
-    string[2] WheelColorsArray=["Red","Black"];
-    //Red = 1, Black = 2
-    
-    
+ 
     struct Bet {
         address player;
         uint numChipsPlaced;
@@ -111,70 +121,67 @@ contract CasinoGameRoulette {
         uint256 betBlockNumber;
     }
     
-    //mapping(address => Bet) public myBets;
-    mapping(uint => Bet) public myBets;
-    uint numBetsMapped=0;
-    //used for "Random" number generator
-    uint256 summationOfAllBetData=0;
+    
+    address[] myBetsIndexByAddressKey;
+    mapping(address => Bet) public myBets;
+    mapping(uint256 => Bet) public unorderedListOfBets;
 
     function setBet(address playerAddress,uint inputNumChips,uint inputColorBetOn,uint inputNumberBetOn) onlyAdmittedPlayers(playerAddress) public {
-        Bet storage UserBet = myBets[numBetsMapped];
+        Bet storage UserBet = myBets[playerAddress];
+        
+        
         UserBet.player=playerAddress;
         UserBet.numChipsPlaced=inputNumChips;
         UserBet.colorBetOn=inputColorBetOn;
         UserBet.numberBetOn=inputNumberBetOn;
         UserBet.betBlockNumber=block.number;
         
+        //Index
+        myBetsIndexByAddressKey.push(playerAddress);
+        
         summationOfAllBetData = uint256(keccak256(abi.encodePacked(playerAddress,inputNumChips,inputColorBetOn,inputNumberBetOn,summationOfAllBetData)));
         numBetsMapped++;
-        
+        gameBalance+=inputNumChips;
     }
     
-    function getBet() view public returns(uint) {
-        return myBets[numBetsMapped-1].numberBetOn;
+    function getBet(address playerAddress) view public returns(uint) {
+        return myBets[playerAddress].numberBetOn;
     }
     
     function getSummationOfAllBetData() view public returns(uint256) {
         return summationOfAllBetData;
     }
     
-
-    struct Winner {
-        address winnerAddress;
-    }
      
-    Winner[] winners; 
-    
-    
-
-   // Bet[] public bets;
-    //CasinoGameDealer public gameDealer;
 
     
     function rouletteModByNumColors(uint256 inputRandColor) view public returns(uint256) {
         uint256 return_random_color = (inputRandColor % 2)+1;
         return return_random_color;
     }
-    
     function rouletteModByNumSlots(uint256 inputRand) view public returns(uint256) {
         uint256 return_random_number = inputRand % 37;
         return return_random_number;
     }
-    
     function spinTheWheel() public view returns(uint256, uint256) {
        
-       uint256 selectedWheelNumber;
-       uint256 selectedWheelColor;
-       bool playerWon;
-       selectedWheelNumber=rouletteModByNumSlots(summationOfAllBetData);
-       selectedWheelColor=rouletteModByNumColors(summationOfAllBetData);
+        uint256 selectedWheelNumber;
+        uint256 selectedWheelColor;
+        bool playerWon;
+        selectedWheelNumber=rouletteModByNumSlots(summationOfAllBetData);
+        selectedWheelColor=rouletteModByNumColors(summationOfAllBetData);
        
-       if(selectedWheelNumber==myBets[0].numberBetOn){
-           playerWon=true;
-       }
-      
-       return (selectedWheelNumber,selectedWheelColor);
+       //will be added when function is no longer "view" --- is "view" for testing purposes
+       // distributeWinnings(selectedWheelNumber,selectedWheelColor);
+        
+        if(selectedWheelNumber==unorderedListOfBets[0].numberBetOn){
+            playerWon=true;
+        }
+        //will be added when function is no longer "view" --- is "view" for testing purposes   
+        //gameNumber++;
        
+        return (selectedWheelNumber,selectedWheelColor);
+        //emit RouletteWheelResults(selectedWheelNumber,selectedWheelColor);
        
                /*        
         
@@ -193,15 +200,72 @@ contract CasinoGameRoulette {
      
     }
     
-    function mapWinningsToWinners() internal {
-       uint256 winnings;
-       //use array of Winner struct --- winners;
-       
-       
-   }
-     
-     //dsitributeWinnings may need to be tightly coupled to the logic for the wheel num+color generation
+   // Winner[] winners; 
+    
+    //event RouletteResults(address[],uint8,)
+                       //[] winners,winningNum,winningColor,
+    
+    address[] winnersIndexByAddress;
+    struct Winner {
+        uint betMultiplier;
+        uint256 numChipsWon;
+    }
+    mapping(address => Winner) winners;
+    event RouletteWinners(address[],uint8,uint8);
+    
+    function distributeWinnings(uint256 inputSelectedWheelNumber,uint256 inputSelectedWheelColor) payable public {
+        
+        //some logic...
+        /*
+        Winner storage thisGamesWinners = winners[playerAddress];
 
+        UserBet.player=playerAddress;
+        UserBet.numChipsPlaced=inputNumChips;
+        UserBet.colorBetOn=inputColorBetOn;
+        UserBet.numberBetOn=inputNumberBetOn;
+        UserBet.betBlockNumber=block.number;
+        
+        //Index
+        myBetsIndexByAddressKey.push(playerAddress);
+        
+        summationOfAllBetData = uint256(keccak256(abi.encodePacked(playerAddress,inputNumChips,inputColorBetOn,inputNumberBetOn,summationOfAllBetData)));
+        numBetsMapped++;
+        gameBalance+=inputNumChips;
+        
+        */
+        
+        
+    }
+    
+    function checkBets(address keyAddress,uint256 inputSelectedWheelNumber,uint256 inputSelectedWheelColor) public returns(bool) {
+        bool playerWon;
+        uint myBetsLength=myBetsIndexByAddressKey.length;
+        
+               
+    }
+    
+    event RouletteWheelResults(uint256,uint256);
+    
+    function spinTheWheelEmitter() public {
+       
+       uint256 selectedWheelNumber;
+       uint256 selectedWheelColor;
+       bool playerWon;
+       selectedWheelNumber=rouletteModByNumSlots(summationOfAllBetData);
+       selectedWheelColor=rouletteModByNumColors(summationOfAllBetData);
+       
+       distributeWinnings(selectedWheelNumber,selectedWheelColor);
+       
+       if(selectedWheelNumber==unorderedListOfBets[0].numberBetOn){
+           playerWon=true;
+       }
+       
+       gameNumber++;
+       
+       emit RouletteWheelResults(selectedWheelNumber,selectedWheelColor);
+
+    }
+    
      
     //function betOnRouge(uint8 betAmount,) payable public
     
@@ -246,8 +310,8 @@ contract CasinoGameRoulette {
 
 contract CFORun {
     address public cfo;
-    constructor() public {
-        cfo = msg.sender;
+    constructor(address cfoAddress) public {
+        cfo = cfoAddress;
     }
     modifier onlyOwner() {
         require(msg.sender == cfo);
@@ -274,6 +338,13 @@ contract CasinoTreasury is CFORun {
         if(newValue>=0) {
             chipValue=newValue;
         }
+    }
+    
+    function takeProfits() internal {
+        //uint amount = address(this).balance - maxAmountAllowedInTheBank;
+        //if (amount > 0) {
+        //    cfo.transfer(amount);
+    //    }
     }
     
 //*********************************************************************************************************************************    
@@ -315,6 +386,17 @@ contract MyContract is Ownable {
         wallets[wallet] = true;
     }
 }
+
+//optional way to distribute winnings:
+    function mapWinningsToWinners() internal {
+       uint256 winnings;
+       //use array of Winner struct --- winners;
+       
+       
+   }
+
+
+
     */
     
     
@@ -394,6 +476,8 @@ actions will happen on casinoTable and will have better encapsulation and abstra
 Future additions will also include:
 noSendEth modifiers to economise on gas
 improved search + sort for datastructs like admittedPlayers
+
+treasury will be updgraded to be able to manage multiple games and multiple game types
 
 ++chips will become ERC20 tokens++
 
