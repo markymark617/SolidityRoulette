@@ -9,7 +9,7 @@ Players can only make 1 bet per address.
 Improvements that should be added in the future are commented on the bottom.
 */
 
-contract Game {
+contract CasinoGame {
     uint gameNumber;
     enum gameType {
         Roulette
@@ -126,15 +126,15 @@ contract CasinoGameRoulette {
     mapping(address => Bet) public myBets;
     mapping(uint256 => Bet) public unorderedListOfBets;
 
-    function setBet(address playerAddress,uint inputNumChips,uint inputColorBetOn,uint inputNumberBetOn) onlyAdmittedPlayers(playerAddress) public {
-        Bet storage UserBet = myBets[playerAddress];
+    function setBet(address playerAddress,uint inputNumChips,uint inputNumberBetOn,uint inputColorBetOn) onlyAdmittedPlayers(playerAddress) public {
+        //Bet storage UserBet = myBets[playerAddress];
         
         
-        UserBet.player=playerAddress;
-        UserBet.numChipsPlaced=inputNumChips;
-        UserBet.colorBetOn=inputColorBetOn;
-        UserBet.numberBetOn=inputNumberBetOn;
-        UserBet.betBlockNumber=block.number;
+        myBets[playerAddress].player=playerAddress;
+        myBets[playerAddress].numChipsPlaced=inputNumChips;
+        myBets[playerAddress].numberBetOn=inputNumberBetOn;
+        myBets[playerAddress].colorBetOn=inputColorBetOn;
+        myBets[playerAddress].betBlockNumber=block.number;
         
         //Index
         myBetsIndexByAddressKey.push(playerAddress);
@@ -203,45 +203,53 @@ contract CasinoGameRoulette {
    // Winner[] winners; 
     
     //event RouletteResults(address[],uint8,)
-                       //[] winners,winningNum,winningColor,
+    //[] winners,winningNum,winningColor,
     
+//NOTE BENE!!!!
+//MUST ADD PLAYERS TO MAPPING
+    address[] playersIndexByAddress;
+    struct Player {
+        bool bWon;
+    }
+    mapping (address => Player) roulettePlayers;
+
     address[] winnersIndexByAddress;
     struct Winner {
         uint betMultiplier;
         uint256 numChipsWon;
     }
     mapping(address => Winner) winners;
+   
+
     event RouletteWinners(address[],uint8,uint8);
     
     function distributeWinnings(uint256 inputSelectedWheelNumber,uint256 inputSelectedWheelColor) payable public {
         
         //some logic...
-        /*
-        Winner storage thisGamesWinners = winners[playerAddress];
-
-        UserBet.player=playerAddress;
-        UserBet.numChipsPlaced=inputNumChips;
-        UserBet.colorBetOn=inputColorBetOn;
-        UserBet.numberBetOn=inputNumberBetOn;
-        UserBet.betBlockNumber=block.number;
+        //address tempAddress;
+        //bool bIsAWinner;
         
-        //Index
-        myBetsIndexByAddressKey.push(playerAddress);
-        
-        summationOfAllBetData = uint256(keccak256(abi.encodePacked(playerAddress,inputNumChips,inputColorBetOn,inputNumberBetOn,summationOfAllBetData)));
-        numBetsMapped++;
-        gameBalance+=inputNumChips;
-        
-        */
-        
+        for(uint i=0;i<myBetsIndexByAddressKey.length;i++) {
+            roulettePlayers[myBetsIndexByAddressKey[i]].bWon=checkBets(myBetsIndexByAddressKey[i],inputSelectedWheelNumber,inputSelectedWheelColor);
+            
+            if(roulettePlayers[myBetsIndexByAddressKey[i]].bWon==true) {
+                winnersIndexByAddress.push(myBetsIndexByAddressKey[i]);
+            }
+        }
         
     }
     
     function checkBets(address keyAddress,uint256 inputSelectedWheelNumber,uint256 inputSelectedWheelColor) public returns(bool) {
-        bool playerWon;
+        bool bWinningStatus;
         uint myBetsLength=myBetsIndexByAddressKey.length;
         
-               
+        if(myBets[keyAddress].numberBetOn==inputSelectedWheelNumber) {
+            if(myBets[keyAddress].colorBetOn==inputSelectedWheelColor) {
+                bWinningStatus=true;
+            }
+        }
+        
+        return(bWinningStatus);
     }
     
     event RouletteWheelResults(uint256,uint256);
