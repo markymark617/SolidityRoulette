@@ -18,6 +18,10 @@ contract CasinoGame {
     
 }
 
+interface Rouletteable {
+    
+}
+
 
 contract CasinoGameRoulette {
     //move to Treasury
@@ -51,31 +55,36 @@ contract CasinoGameRoulette {
         WheelNumberBlack=2;
     }
     
-    modifier runBeforeSpin {
+    //modifier runBeforeSpin {
+    modifier hasTreasuryApproval {
        //modifier for when a delay is implemented --- require(wheelHasSpun==false,"Too Late");
        //modifier to ensure at least 3 players (or addresses at play) --- require(admittedPlayers.length>2);
+       //1 bet per player address
        require(admittedPlayers.length==numBetsMapped);
         _;
     }
     
     /* Manage Players in game */
+    // address[] playersIndexByAddress;
+       
     address[] admittedPlayers;
-    
-    function getAdmittedPlayers() public view returns(address[] memory) {
-       return(admittedPlayers);
+    struct Player {
+        bool bWon;
+        uint betMultiplier;
+        string sWonOrLostString;
+        uint256 chipBalance;
     }
-    function verifyAdmittedPlayersAddress(address inputAddress) public view returns(bool) {
-       bool bAddressIsValid;
-       //add if(admittedPlayers.length==0){ return false; }
-       for (uint i=0; i<admittedPlayers.length; i++) {
-            if(admittedPlayers[i] == inputAddress){
-                 bAddressIsValid=true;
-            }
-       }
-       return(bAddressIsValid);
+    mapping (address => Player) roulettePlayers;
+    
+    function registerPlayer(address inputAddress, uint256 inputChipBalance) public {
+        //add Player contract instance here
+        
+        admitPlayer(inputAddress);
+        roulettePlayers[inputAddress].chipBalance=inputChipBalance;
+
     }
     //add treasury check that chips were distributed
-    function admitPlayer(address _address) external {
+    function admitPlayer(address _address) internal {
         bool alreadyAdmitted;
         
         alreadyAdmitted=checkInArrayOfAddresses(_address,admittedPlayers);
@@ -86,16 +95,6 @@ contract CasinoGameRoulette {
         else {
             revert("Already Admitted");
         }
-    }
-    function getPlayerCount() public view returns(uint count) {
-        return admittedPlayers.length;
-    }
-
-    modifier onlyAdmittedPlayers(address playerAddress) {
-        bool playerIsAdmitted;
-        playerIsAdmitted=verifyAdmittedPlayersAddress(playerAddress);
-        require(playerIsAdmitted);
-        _;
     }
     
     //will become expensive as array grows. Should replace with mapping 
@@ -108,27 +107,47 @@ contract CasinoGameRoulette {
         }
         return bInArray;
     }
-    struct admittedPlayerStruct {
-        address payable playerAddressPayable;
-        //uint...
+    
+    modifier onlyAdmittedPlayers(address playerAddress) {
+        bool playerIsAdmitted;
+        playerIsAdmitted=verifyAdmittedPlayersAddress(playerAddress);
+        require(playerIsAdmitted);
+        _;
     }
- 
+    
+    function verifyAdmittedPlayersAddress(address inputAddress) internal view returns(bool) {
+       bool bAddressIsValid;
+       //add if(admittedPlayers.length==0){ return false; }
+       for (uint i=0; i<admittedPlayers.length; i++) {
+            if(admittedPlayers[i] == inputAddress){
+                 bAddressIsValid=true;
+            }
+       }
+       return(bAddressIsValid);
+    }
+    function getAdmittedPlayers() public view returns(address[] memory) {
+       return(admittedPlayers);
+    }
+    function getPlayerCount() public view returns(uint count) {
+        return admittedPlayers.length;
+    }
+
+
     struct Bet {
         address player;
         uint numChipsPlaced;
-        uint colorBetOn;
         uint numberBetOn;
+        uint colorBetOn;
         uint256 betBlockNumber;
+        bool bWon;
     }
     
     
     address[] myBetsIndexByAddressKey;
     mapping(address => Bet) public myBets;
-    mapping(uint256 => Bet) public unorderedListOfBets;
 
     function setBet(address playerAddress,uint inputNumChips,uint inputNumberBetOn,uint inputColorBetOn) onlyAdmittedPlayers(playerAddress) public {
         //Bet storage UserBet = myBets[playerAddress];
-        
         
         myBets[playerAddress].player=playerAddress;
         myBets[playerAddress].numChipsPlaced=inputNumChips;
@@ -147,13 +166,9 @@ contract CasinoGameRoulette {
     function getBet(address playerAddress) view public returns(uint) {
         return myBets[playerAddress].numberBetOn;
     }
-    
     function getSummationOfAllBetData() view public returns(uint256) {
         return summationOfAllBetData;
     }
-    
-     
-
     
     function rouletteModByNumColors(uint256 inputRandColor) view public returns(uint256) {
         uint256 return_random_color = (inputRandColor % 2)+1;
@@ -167,73 +182,43 @@ contract CasinoGameRoulette {
        
         uint256 selectedWheelNumber;
         uint256 selectedWheelColor;
-        bool playerWon;
+
         selectedWheelNumber=rouletteModByNumSlots(summationOfAllBetData);
         selectedWheelColor=rouletteModByNumColors(summationOfAllBetData);
        
-       //will be added when function is no longer "view" --- is "view" for testing purposes
-       // distributeWinnings(selectedWheelNumber,selectedWheelColor);
-        
-        if(selectedWheelNumber==unorderedListOfBets[0].numberBetOn){
-            playerWon=true;
-        }
+        //will be added when function is no longer "view" --- is "view" for testing purposes
+        // identifyWinners(selectedWheelNumber,selectedWheelColor);
+        //settleBetsInChipVal(selectedWheelNumber,selectedWheelColor);
+
         //will be added when function is no longer "view" --- is "view" for testing purposes   
         //gameNumber++;
        
         return (selectedWheelNumber,selectedWheelColor);
         //emit RouletteWheelResults(selectedWheelNumber,selectedWheelColor);
-       
-               /*        
-        
-        uint8 wheelResult;
-            //Spin the wheel, 
-            bytes32 blockHash= block.blockhash(playerblock);
-            //security check that the Hash is not empty
- if (blockHash==0) throw;
-        // generate the hash for RNG from the blockHash and the player's address
-            bytes32 shaPlayer = sha3(playerSpinned, blockHash);
-        // get the final wheel result
-        wheelResult = uint8(uint256(shaPlayer)%37);
-            //check result against bet and pay if win
-        checkBetResult(wheelResult, playerSpinned, blockHash, shaPlayer);*/
-       
      
     }
     
-   // Winner[] winners; 
-    
-    //event RouletteResults(address[],uint8,)
-    //[] winners,winningNum,winningColor,
-    
-//NOTE BENE!!!!
-//MUST ADD PLAYERS TO MAPPING
-    address[] playersIndexByAddress;
-    struct Player {
-        bool bWon;
-    }
-    mapping (address => Player) roulettePlayers;
 
     address[] winnersIndexByAddress;
-    struct Winner {
-        uint betMultiplier;
-        uint256 numChipsWon;
-    }
-    mapping(address => Winner) winners;
-   
-
-    event RouletteWinners(address[],uint8,uint8);
+    address[] losersIndexByAddress;
     
-    function distributeWinnings(uint256 inputSelectedWheelNumber,uint256 inputSelectedWheelColor) payable public {
+    //(playerAddress,iChipsWon or iChipsLost)
+    event RouletteWinners(address);
+    
+    function identifyWinners(uint256 inputSelectedWheelNumber,uint256 inputSelectedWheelColor) public {
         
-        //some logic...
-        //address tempAddress;
-        //bool bIsAWinner;
-        
-        for(uint i=0;i<myBetsIndexByAddressKey.length;i++) {
-            roulettePlayers[myBetsIndexByAddressKey[i]].bWon=checkBets(myBetsIndexByAddressKey[i],inputSelectedWheelNumber,inputSelectedWheelColor);
+        for(uint i=0; i < myBetsIndexByAddressKey.length;i++) {
+            roulettePlayers[myBetsIndexByAddressKey[i]].bWon = checkBets(myBetsIndexByAddressKey[i],inputSelectedWheelNumber,inputSelectedWheelColor);
             
             if(roulettePlayers[myBetsIndexByAddressKey[i]].bWon==true) {
                 winnersIndexByAddress.push(myBetsIndexByAddressKey[i]);
+                roulettePlayers[myBetsIndexByAddressKey[i]].sWonOrLostString="WON";
+                
+                emit RouletteWinners(myBetsIndexByAddressKey[i]);
+            }
+            else {
+                losersIndexByAddress.push(myBetsIndexByAddressKey[i]);
+                roulettePlayers[myBetsIndexByAddressKey[i]].sWonOrLostString="LOST";
             }
         }
         
@@ -252,21 +237,44 @@ contract CasinoGameRoulette {
         return(bWinningStatus);
     }
     
+    //(playerAddress,"WON" or "LOST",iChipsWon or iChipsLost)
+    event RouletteGameResults(address,string,uint256);
+    
+    function settleBetsInChipVal() public {
+        uint256 iChipsWonOrLost;
+        
+        for(uint i=0; i < myBetsIndexByAddressKey.length;i++) {
+            
+            if(roulettePlayers[myBetsIndexByAddressKey[i]].bWon==true) {
+                //simple 2x multiplier for all bets, will update one day
+                roulettePlayers[myBetsIndexByAddressKey[i]].betMultiplier=2;
+                iChipsWonOrLost = myBets[myBetsIndexByAddressKey[i]].numChipsPlaced * roulettePlayers[myBetsIndexByAddressKey[i]].betMultiplier;
+                roulettePlayers[myBetsIndexByAddressKey[i]].chipBalance += iChipsWonOrLost;
+            }
+            else {
+                iChipsWonOrLost = myBets[myBetsIndexByAddressKey[i]].numChipsPlaced;
+                roulettePlayers[myBetsIndexByAddressKey[i]].chipBalance -= myBets[myBetsIndexByAddressKey[i]].numChipsPlaced;
+            }
+            
+            emit RouletteGameResults(myBetsIndexByAddressKey[i],roulettePlayers[myBetsIndexByAddressKey[i]].sWonOrLostString,iChipsWonOrLost);
+        }
+        
+    }
+
+    //function updateBalanceByBetType();........
+    
     event RouletteWheelResults(uint256,uint256);
     
     function spinTheWheelEmitter() public {
        
        uint256 selectedWheelNumber;
        uint256 selectedWheelColor;
-       bool playerWon;
+
        selectedWheelNumber=rouletteModByNumSlots(summationOfAllBetData);
        selectedWheelColor=rouletteModByNumColors(summationOfAllBetData);
        
-       distributeWinnings(selectedWheelNumber,selectedWheelColor);
-       
-       if(selectedWheelNumber==unorderedListOfBets[0].numberBetOn){
-           playerWon=true;
-       }
+       identifyWinners(selectedWheelNumber,selectedWheelColor);
+       settleBetsInChipVal();
        
        gameNumber++;
        
@@ -362,6 +370,13 @@ contract CasinoTreasury is CFORun {
     function addWallet(address wallet) external onlyOwner {
         wallets[wallet] = true;
     }
+    
+    struct admittedPlayerStruct {
+        address payable playerAddressPayable;
+        //uint...
+    }
+ 
+    
 //*********************************************************************************************************************************
 //*********************************************************************************************************************************
 
