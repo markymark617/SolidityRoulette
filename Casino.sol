@@ -30,7 +30,7 @@ contract CasinoGameRoulette {
     //constructor that initializes all related instances and sets game defaults
         
     //sets up the roulette game 
-    constructor() public payable {
+    constructor() public {
         gameBalance=0;
         numBetsMapped=0;
         summationOfAllBetData=0;
@@ -128,25 +128,41 @@ contract CasinoGameRoulette {
         bool bWon;
     }
     
-    
     address[] myBetsIndexByAddressKey;
     mapping(address => Bet) public myBets;
 
     function setBet(address playerAddress,uint inputNumChips,uint inputNumberBetOn,uint inputColorBetOn) onlyAdmittedPlayers(playerAddress) public {
         //Bet storage UserBet = myBets[playerAddress];
+        if(!alreadyPlacedABet(playerAddress)) {
         
-        myBets[playerAddress].player=playerAddress;
-        myBets[playerAddress].numChipsPlaced=inputNumChips;
-        myBets[playerAddress].numberBetOn=inputNumberBetOn;
-        myBets[playerAddress].colorBetOn=inputColorBetOn;
-        myBets[playerAddress].betBlockNumber=block.number;
+            myBets[playerAddress].player=playerAddress;
+            myBets[playerAddress].numChipsPlaced=inputNumChips;
+            myBets[playerAddress].numberBetOn=inputNumberBetOn;
+            myBets[playerAddress].colorBetOn=inputColorBetOn;
+            myBets[playerAddress].betBlockNumber=block.number;
+            
+            //Index
+            myBetsIndexByAddressKey.push(playerAddress);
+            
+            summationOfAllBetData = uint256(keccak256(abi.encodePacked(playerAddress,inputNumChips,inputColorBetOn,inputNumberBetOn,summationOfAllBetData)));
+            numBetsMapped++;
+            gameBalance+=inputNumChips;
+        }
+        else {
+            revert("ALREADY BET");
+        }
+    }
+    
+    function alreadyPlacedABet(address inputAddress) public returns(bool) {
+        bool bAlreadyPlacedABet;
         
-        //Index
-        myBetsIndexByAddressKey.push(playerAddress);
-        
-        summationOfAllBetData = uint256(keccak256(abi.encodePacked(playerAddress,inputNumChips,inputColorBetOn,inputNumberBetOn,summationOfAllBetData)));
-        numBetsMapped++;
-        gameBalance+=inputNumChips;
+        //myBetsIndexByAddressKey
+         for (uint i=0; i<myBetsIndexByAddressKey.length; i++) {
+            if(myBetsIndexByAddressKey[i] == inputAddress) {
+                 bAlreadyPlacedABet=true;
+            }
+        return(bAlreadyPlacedABet);
+        }
     }
     
     function getBet(address playerAddress) view public returns(uint) {
