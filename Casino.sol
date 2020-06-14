@@ -82,6 +82,7 @@ contract CasinoGameRoulette {
         uint colorBetOn;
         uint256 betBlockNumber;
         bool bWon;
+        uint betMultiplier;
     }
     
     address[] myBetsIndexByAddressKey;
@@ -96,6 +97,8 @@ contract CasinoGameRoulette {
             myBets[playerAddress].numberBetOn=inputNumberBetOn;
             myBets[playerAddress].colorBetOn=inputColorBetOn;
             myBets[playerAddress].betBlockNumber=block.number;
+            myBets[playerAddress].betMultiplier=2;
+            
             
             //Index
             myBetsIndexByAddressKey.push(playerAddress);
@@ -109,7 +112,7 @@ contract CasinoGameRoulette {
         }
     }
     
-    function alreadyPlacedABet(address inputAddress) public returns(bool) {
+    function alreadyPlacedABet(address inputAddress) public view returns(bool) {
         bool bAlreadyPlacedABet;
         
         //myBetsIndexByAddressKey
@@ -128,16 +131,16 @@ contract CasinoGameRoulette {
         return summationOfAllBetData;
     }
     
-    function rouletteModByNumColors(uint256 inputRandColor) view public returns(uint256) {
+    function rouletteModByNumColors(uint256 inputRandColor) pure public returns(uint256) {
         uint256 return_random_color = (inputRandColor % 2)+1;
         return return_random_color;
     }
-    function rouletteModByNumSlots(uint256 inputRand) view public returns(uint256) {
+    function rouletteModByNumSlots(uint256 inputRand) pure public returns(uint256) {
         uint256 return_random_number = inputRand % 37;
         return return_random_number;
     }
     
-    event RouletteWheelResults(uint256,uint256);
+    event RouletteWheelResults(uint256,uint256,bytes32);
     
     function spinTheWheel() public {
        
@@ -152,7 +155,7 @@ contract CasinoGameRoulette {
        
        gameNumber++;
        
-       emit RouletteWheelResults(selectedWheelNumber,selectedWheelColor);
+       emit RouletteWheelResults(selectedWheelNumber,selectedWheelColor,"COMPLETE");
 
     }
 
@@ -188,9 +191,8 @@ contract CasinoGameRoulette {
         
     }
     
-    function checkBets(address keyAddress,uint256 inputSelectedWheelNumber,uint256 inputSelectedWheelColor) public returns(bool) {
+    function checkBets(address keyAddress,uint256 inputSelectedWheelNumber,uint256 inputSelectedWheelColor) public view returns(bool) {
         bool bWinningStatus;
-        uint myBetsLength=myBetsIndexByAddressKey.length;
         
         if(myBets[keyAddress].numberBetOn==inputSelectedWheelNumber) {
             if(myBets[keyAddress].colorBetOn==inputSelectedWheelColor) {
@@ -207,20 +209,36 @@ contract CasinoGameRoulette {
     function settleBetsInChipVal() public {
         uint256 iChipsWonOrLost;
         
+        address currAddress;
+        
+        bool currRoulettePlayerBWonValue;
+        uint currRoulettePlayerBetMultiplierValue;
+        bytes32 currRoulettePlayerSWonLossStringValue;
+        uint256 currRoulettePlayerChipBalanceValue;
+        
         for(uint i=0; i < myBetsIndexByAddressKey.length;i++) {
             
-            if(T.getRoulettePlayersWonLoss(myBetsIndexByAddressKey[i])==true) {
+            //setup local variables for readability
+            currAddress=myBetsIndexByAddressKey[i];
+            
+            currRoulettePlayerBWonValue=T.getRoulettePlayersWonLoss(currAddress);
+            currRoulettePlayerBetMultiplierValue = myBets[myBetsIndexByAddressKey[i]].betMultiplier;
+            currRoulettePlayerSWonLossStringValue=T.getRoulettePlayersWonLossString(currAddress);
+            currRoulettePlayerChipBalanceValue=T.getRoulettePlayersChipBalance(currAddress);
+            
+            if(currRoulettePlayerBWonValue==true) {
                 //simple 2x multiplier for all bets, will update one day
-                T.updateRoulettePlayersBetMultiplier(myBetsIndexByAddressKey[i],2);
-                iChipsWonOrLost = myBets[myBetsIndexByAddressKey[i]].numChipsPlaced * T.getRoulettePlayersBetMultiplier(myBetsIndexByAddressKey[i]);
-                T.updateRoulettePlayerChipBalance(myBetsIndexByAddressKey[i],(T.getRoulettePlayersChipBalance(myBetsIndexByAddressKey[i])+iChipsWonOrLost);
+                iChipsWonOrLost = myBets[myBetsIndexByAddressKey[i]].numChipsPlaced * currRoulettePlayerBetMultiplierValue;
+                T.updateRoulettePlayerChipBalance(currAddress,currRoulettePlayerChipBalanceValue+iChipsWonOrLost);
             }
             else {
                 iChipsWonOrLost = myBets[myBetsIndexByAddressKey[i]].numChipsPlaced;
-                T.roulettePlayers[myBetsIndexByAddressKey[i]].chipBalance -= myBets[myBetsIndexByAddressKey[i]].numChipsPlaced;
+                //T.roulettePlayers[myBetsIndexByAddressKey[i]].chipBalance -= myBets[myBetsIndexByAddressKey[i]].numChipsPlaced;
+                T.updateRoulettePlayerChipBalance(currAddress,(currRoulettePlayerChipBalanceValue-myBets[myBetsIndexByAddressKey[i]].numChipsPlaced));
             }
             
-            emit RouletteGameResults(myBetsIndexByAddressKey[i],T.roulettePlayers[myBetsIndexByAddressKey[i]].sWonOrLostString,iChipsWonOrLost);
+            emit RouletteGameResults(currAddress,currRoulettePlayerSWonLossStringValue,iChipsWonOrLost);
+            //getRoulettePlayersWonLossString
         }
         
     }
@@ -286,15 +304,25 @@ contract CasinoTreasury is CFORun {
     
     //values in eth
     uint256 totalCasinoBalance;
-    uint256 chipValue = 100 finney;
+    uint256 chipValue;
     uint256 fee;
     address cfo;
     //values in numChips
-    uint MaxBet=1000;
-    uint minBet=5;
+    uint MaxBet;
+    uint minBet;
     address[] bannedPlayers;
 
-    function getChipValue() public returns(uint256) {
+
+    constructor(bytes32 _name) public {
+        cfo=msg.sender;
+        chipValue = 100 finney;
+        MaxBet=1000;
+        minBet=5;
+    }
+
+
+
+    function getChipValue() public view returns(uint256) {
         return(chipValue);
     }
     function setChipValue(uint256 newValue) external onlyOwner {
@@ -316,15 +344,14 @@ contract CasinoTreasury is CFORun {
     address[] admittedPlayers;
     struct Player {
         bool bWon;
-        uint betMultiplier;
+       // uint betMultiplier;
         bytes32 sWonOrLostString;
         uint256 chipBalance;
     }
     mapping (address => Player) public roulettePlayers;
     
-    function getRoulettePlayers(address inputAddress) public returns(bool,uint,bytes32,uint256) {
+    function getRoulettePlayers(address inputAddress) public returns(bool,bytes32,uint256) {
         return(roulettePlayers[inputAddress].bWon,
-        roulettePlayers[inputAddress].betMultiplier,
         roulettePlayers[inputAddress].sWonOrLostString,
         roulettePlayers[inputAddress].chipBalance);
     }
@@ -335,13 +362,7 @@ contract CasinoTreasury is CFORun {
     function updateRoulettePlayersWonLoss(address inputAddress,bool inputBWon) public {
         roulettePlayers[inputAddress].bWon=inputBWon;
     }
-    //betMultiplier getters + setters
-    function getRoulettePlayersBetMultiplier(address inputAddress) public returns(uint) {
-        return(roulettePlayers[inputAddress].betMultiplier);
-    }
-    function updateRoulettePlayersBetMultiplier(address inputAddress,uint inputBetMultiplier) public {
-        roulettePlayers[inputAddress].betMultiplier=inputBetMultiplier;
-    }
+
     //sWonOrLostString getters + setters
     function getRoulettePlayersWonLossString(address inputAddress) public returns(bytes32) {
         return(roulettePlayers[inputAddress].sWonOrLostString);
@@ -357,9 +378,8 @@ contract CasinoTreasury is CFORun {
     function updateRoulettePlayerChipBalance(address inputAddress,uint256 inputChipBalance) public {
         roulettePlayers[inputAddress].chipBalance=inputChipBalance;
     }
-    function updateRoulettePlayers(address inputAddress,bool inputBWon, uint inputBetMultiplier, bytes32 inputWonLossString, uint256 inputChipBalance) public {
+    function updateRoulettePlayers(address inputAddress,bool inputBWon, bytes32 inputWonLossString, uint256 inputChipBalance) public {
         roulettePlayers[inputAddress].bWon=inputBWon;
-        roulettePlayers[inputAddress].betMultiplier=inputBetMultiplier;
         roulettePlayers[inputAddress].sWonOrLostString=inputWonLossString;
         roulettePlayers[inputAddress].chipBalance=inputChipBalance;
     }
@@ -444,9 +464,7 @@ contract CasinoTreasury is CFORun {
 //*********************************************************************************************************************************
 //*********************************************************************************************************************************
 
-    constructor(bytes32 _name) public {
-        cfo=msg.sender;
-    }
+
 
     
     
