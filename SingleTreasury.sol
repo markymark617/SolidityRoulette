@@ -1,9 +1,15 @@
 pragma solidity ^0.5.0;
 
+/**
+ * Simple treasury with no logic for players, betting, token access, 
+ */
 contract SingleTreasury {
 
     mapping (address => uint) private balances;
     address public owner;
+    
+    event MadeDeposit(address depositorAddress, uint256 depositAmount, uint256 currBalance);
+    event WithdrawalAlert(address withdrawalAddress, uint256 withdrawalAmount, uint256 currBalance);
 
     // Constructor is "payable" so it can receive the initial funding of 30, 
 
@@ -11,15 +17,7 @@ contract SingleTreasury {
         require(msg.value >= 30 wei, "30 wei  funding required");
         /* Set the owner to the creator of this contract */
         owner = msg.sender;
-        playerCount=1;
     }
-    
-    uint private playerCount;
-    struct Players {
-        address playerAddr;
-        uint balance;
-    }
-    address[] playerlist; 
 
     /**
      *Adds funds to the Treasury, in case you clean out the house but want to keep playing 
@@ -32,14 +30,25 @@ contract SingleTreasury {
 
         return(address(this).balance,"Thanks...",amountAdded);
     }
-    
     function depositEthForChips() public payable returns(uint) {
         balances[msg.sender]+=msg.value;
-       
-       //insert register player logic here 
-        playerCount++;
-        
+        emit MadeDeposit(msg.sender,msg.value,balances[msg.sender]+msg.value);
         return(balances[msg.sender]);
+    }
+    
+    
+
+    function withdraw(uint256 withdrawalAmount) public returns (uint currBalance) {
+
+        if (withdrawalAmount <= balances[msg.sender] && balances[msg.sender]>0) {
+            balances[msg.sender] -= withdrawalAmount;
+            msg.sender.transfer(withdrawalAmount);
+            emit WithdrawalAlert(msg.sender,withdrawalAmount,balances[msg.sender]-withdrawalAmount);
+        }
+        else {
+            revert("Withdrawal Denied");
+        }
+        return balances[msg.sender];
     }
     
     function getPlayerBalance() public view returns (uint) {
